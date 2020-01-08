@@ -1,14 +1,15 @@
-<img style="float: right;" src="https://secure.meetupstatic.com/photos/event/5/a/b/c/600_487523228.jpeg" width="400"/>
+<p float="left">
+  <img src="https://secure.meetupstatic.com/photos/event/5/a/b/c/600_487523228.jpeg" width="200" />
+  <img src="https://aws1.discourse-cdn.com/standard10/uploads/streamlit/original/2X/4/4c01f00e7104ead83d78a8bf61f0321fe531c18b.png" width="200" /> 
+</p>
 
 # adl01_streamlit-demo
 
-[Streamlit](https://www.streamlit.io) demo apps for Alpine Data Lovers meetup #1
-
-<img src="https://aws1.discourse-cdn.com/standard10/uploads/streamlit/original/2X/4/4c01f00e7104ead83d78a8bf61f0321fe531c18b.png" width="200">
+[Streamlit](https://www.streamlit.io) demo apps for my talk at the first **Alpine Data Lovers** meetup.
 
 ## Summary
 
-This repo contains data and demo apps from the first [**Alpine Data Lovers**](https://www.meetup.com/alpine-data-lovers) meetup hostet 22nd of January 2020 at KIT Campus Alpin - IMK-IFU, Garmisch-Partenkirchen.
+This repo contains data and demo apps from the [**Alpine Data Lovers**](https://www.meetup.com/alpine-data-lovers) meetup hostet 22nd of January 2020 at KIT Campus Alpin - IMK-IFU, Garmisch-Partenkirchen.
 
 Event details:   
 >  
