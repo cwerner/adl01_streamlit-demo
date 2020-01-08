@@ -1,6 +1,6 @@
 <p float="left">
-  <img src="https://secure.meetupstatic.com/photos/event/5/a/b/c/600_487523228.jpeg" height="150" />
-  <img src="https://aws1.discourse-cdn.com/standard10/uploads/streamlit/original/2X/4/4c01f00e7104ead83d78a8bf61f0321fe531c18b.png" height="150" /> 
+  <img src="https://secure.meetupstatic.com/photos/event/5/a/b/c/600_487523228.jpeg" height="100" />
+  <img src="https://aws1.discourse-cdn.com/standard10/uploads/streamlit/original/2X/4/4c01f00e7104ead83d78a8bf61f0321fe531c18b.png" height="100" /> 
 </p>
 
 # adl01_streamlit-demo
