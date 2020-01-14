@@ -8,6 +8,8 @@ import xarray as xr
 import datetime
 import altair as alt
 import matplotlib.pyplot as plt
+import cartopy.crs as ccrs
+
 
 # GWP for 100-yr time horizon  according to 5th IPCC report
 n2o_gwp = 265
