@@ -1,4 +1,5 @@
 #cython --install-option="--no-cython-compile"
+cython
 altair
 netcdf4
 xarray
