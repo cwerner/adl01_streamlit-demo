@@ -19,6 +19,31 @@ INTRO = """\
         > *cropping systems.*"""
 
 
+# GWP for 100-yr time horizon  according to 5th IPCC report
+n2o_gwp = 265
+ch4_gwp = 28
+
+gwp_vars = ['dN_n2o_emis', 'dC_ch4_emis']
+
+def convert_ch4_gwp(value):
+    return value * ch4_gwp * (16./12.)
+
+def convert_n2o_gwp(value):
+    return value * n2o_gwp * (44./28.)
+
+fluxnames = {'dN_n2o_emis': 'N2O Emission', 
+            'dN_no_emis': 'NO(x) Emission',
+            'dN_nh3_emis': 'NH3 Emission',
+            'dN_n2_emis': 'N2 Emission',
+            'dN_no3_leach': 'NO3 Leaching',
+            'dN_nh4_leach': 'NH4 leaching',
+            'dN_don_leach': 'DON leaching',
+            'dN_up_min': 'Plant N uptake',
+            'dN_dep': 'Atmos. N deposition',
+            'dN_n2_fix': 'Biological N fixation',
+            'dC_ch4_emis': 'CH4 Emission'}
+
+
 # import pandas as pd
 # import pint
 

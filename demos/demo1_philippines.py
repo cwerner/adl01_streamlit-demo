@@ -1,51 +1,16 @@
-import streamlit as st
+import altair as alt
+import datetime
 import numpy as np
 import pandas as pd
-from utils import INTRO
+import streamlit as st
 from string import capwords
 import textwrap
 import xarray as xr
-import datetime
-import altair as alt
-import matplotlib.pyplot as plt
-import cartopy.crs as ccrs
-import matplotlib
-matplotlib.rcParams.update({'font.size': 10})
-import matplotlib.patches as mpatches
-import cartopy.feature as cfeature
 
+from maps import plot_maps
+from utils import INTRO, fluxnames, convert_ch4_gwp, convert_n2o_gwp, gwp_vars
+from report import create_report
 
-# Create a feature for States/Admin 1 regions at 1:50m from Natural Earth
-countries = cfeature.NaturalEarthFeature(
-    category='cultural',
-    name='admin_0_countries',
-    scale='50m',
-    facecolor='none')
-    
-ocean = cfeature.NaturalEarthFeature(
-        category='physical', 
-        name='ocean', 
-        scale='50m',
-        edgecolor='face',
-        facecolor=cfeature.COLORS['water'])
-
-# GWP for 100-yr time horizon  according to 5th IPCC report
-n2o_gwp = 265
-ch4_gwp = 28
-
-gwp_vars = ['dN_n2o_emis', 'dC_ch4_emis']
-
-fluxnames = {'dN_n2o_emis': 'N2O Emission', 
-            'dN_no_emis': 'NO(x) Emission',
-            'dN_nh3_emis': 'NH3 Emission',
-            'dN_n2_emis': 'N2 Emission',
-            'dN_no3_leach': 'NO3 Leaching',
-            'dN_nh4_leach': 'NH4 leaching',
-            'dN_don_leach': 'DON leaching',
-            'dN_up_min': 'Plant N uptake',
-            'dN_dep': 'Atmos. N deposition',
-            'dN_n2_fix': 'Biological N fixation',
-            'dC_ch4_emis': 'CH4 Emission'}
 
 
 @st.cache(allow_output_mutation=True)
@@ -63,21 +28,6 @@ def load_raw_data_awd_gridcell():
 @st.cache(allow_output_mutation=True)
 def load_raw_data_cf_gridcell():
     return xr.open_dataset('../data/demo1_philippines/default_cf_hr_200_nobund_daily_ts_gridcell.nc')
-
-@st.cache(allow_output_mutation=True)
-def load_raw_data_awd_annual():
-    return xr.open_dataset('../data/demo1_philippines/default_cf_hr_200_nobund_annual.nc')[['dC_ch4_emis', 'dN_n2o_emis']]
-
-@st.cache(allow_output_mutation=True)
-def load_raw_data_cf_annual():
-    return xr.open_dataset('../data/demo1_philippines/default_cf_hr_200_nobund_annual.nc')[['dC_ch4_emis', 'dN_n2o_emis']]
-
-
-def convert_ch4_gwp(value):
-    return value * ch4_gwp * (16./12.)
-
-def convert_n2o_gwp(value):
-    return value * n2o_gwp * (44./28.)
 
 def identify_index_col(df):
     for c in df.columns.values:
@@ -123,72 +73,6 @@ def bar_plot(df, vars=None, units=None):
         )
     st.altair_chart(c)    
 
-def plot_maps(management='Conventional', year=None):
-
-    Dname = {}
-    Dname['dC_ch4_emis'] = r'$\mathregular{CH_4\ emission\ [kg\ C\ ha^{-1}\ yr^{-1}]}$'
-    Dname['dN_n2o_emis'] = r'$\mathregular{N_2O\ emission\ [kg\ N\ ha^{-1}\ yr^{-1}]}$'
-    Dname['GWP']         = r'$\mathregular{GWP\ [Mg\ CO_2\ eq\ ha^{-1}\ yr^{-1}]}$'
-
-    if year:
-        davg_cf = load_raw_data_cf_annual().sel(year=year).mean(dim='year')
-        davg_awd = load_raw_data_cf_annual().sel(year=year).mean(dim='year')
-    else:
-        davg_cf = load_raw_data_cf_annual().mean(dim='year')
-        davg_awd = load_raw_data_cf_annual().mean(dim='year')
-
-    davg = davg_cf if management == 'Conventional' else davg_awd
-
-    da_ch4   = davg['dC_ch4_emis']
-    da_n2o   = davg['dN_n2o_emis']
-    da_gwp   = convert_ch4_gwp(da_ch4) + convert_n2o_gwp(da_n2o)
-
-    fig, axes = plt.subplots(2, 2, figsize=(10,10), subplot_kw=dict(projection=ccrs.PlateCarree()))
-
-    for i, ax in enumerate(axes.flat):
-        if i == 3:
-            break
-        ax.set_extent([116, 127, 4, 22])
-            
-        # add map elements
-        ax.add_feature(countries, edgecolor='gray')     # country borders
-        #ax.add_geometries(vietnam, ccrs.PlateCarree(), edgecolor='white', facecolor='none')
-        ax.add_feature(ocean)                           # ocean
-        ax.coastlines(resolution='50m')                 # coastlines
-
-        if i == 0:
-            colors = plt.cm.Reds
-            p=xr.plot.pcolormesh(da_ch4.where(da_ch4>0), cbar_kwargs={'label': Dname['dC_ch4_emis']}, 
-                        ax=ax, cmap=colors, transform=ccrs.PlateCarree(), 
-                        vmin=0, vmax=1500, extend='max' )
-
-        elif i == 1:
-            colors = plt.cm.YlGn
-            xr.plot.pcolormesh(da_n2o.where(da_n2o>0), cbar_kwargs={'label': Dname['dN_n2o_emis']},
-                        ax=ax, cmap=colors, transform=ccrs.PlateCarree(), 
-                        vmin=0, vmax=5, extend='max' )
-
-        elif i == 2:
-            colors = plt.cm.Blues
-            xr.plot.pcolormesh(da_gwp.where(da_gwp>0), cbar_kwargs={'label': Dname['GWP']}, 
-                        ax=ax, cmap=colors, transform=ccrs.PlateCarree(), 
-                        vmin=0, vmax=50, extend='max')
-
-        ax.add_patch(mpatches.Rectangle(xy=[116.25, 19], width=1, height=1,
-                                            facecolor='none',
-                                            edgecolor='black',
-                                            alpha=1.0,
-                                            transform=ccrs.PlateCarree()))
-
-        sublabels = ['CH4', 'N2O', 'CH4+N2O']
-
-        ax.text(116.5, 20.45, sublabels[i], fontsize=15,
-                horizontalalignment='left', verticalalignment='center',
-                transform=ccrs.PlateCarree())
-
-    fig.delaxes(axes[1][1])
-
-    return fig
 
 def main():
     st.title('Data explorer for LandscapeDNDC Philippines sims')
@@ -327,61 +211,7 @@ def main():
         # reporting
         st.header("Data report")
 
-        stats = {}
-        for var in gwp_vars:
-            gwp = n2o_gwp if 'n2o' in var else ch4_gwp
-            vname = 'n2o' if 'n2o' in var else 'ch4'
-            stats[vname] = {}
-            for m in ['cf', 'awd']:
-                stats[vname][m] = {}
-                data_orig = data_orig_cf if m == 'cf' else data_orig_awd 
-                annual_sum = data_orig[var].groupby(data_orig.index.year).sum().mean()
-                annual_gwp = annual_sum * gwp
-                daily_mean = data_orig[var].mean()
-                stats[vname][m]['annual'] = annual_sum
-                stats[vname][m]['gwp'] = annual_gwp
-                stats[vname][m]['daily'] = daily_mean
-
-        # individual contributions (conventional)
-        m = 'cf'
-        st.markdown( f"""
-            With conventional management, rice paddies of the Philippines emitted
-            `{stats['ch4'][m]['annual']:.1f} kg C yr-1` (or `{stats['ch4'][m]['daily']:.2f} kg C d-1`)
-            as `Methane`. This amounts to a GWP-equivalent of `{int(stats['ch4'][m]['gwp'])} CO2-eq yr-1` [1].
-            In addition, `N2O emissions` of `{stats['n2o'][m]['annual']:.2f} kg N yr-1` (or
-            `{(stats['n2o'][m]['daily']*1000):.1f} g N d-1`) were released to the atmosphere. 
-            These emissions amount to `{int(stats['n2o'][m]['gwp'])} kg CO2-eq yr-1`.  
-            """)
-
-        # individual contributions (awd)
-        m = 'awd'
-
-        st.markdown( f"""    
-            If management would be switched to alternate-wetting and drying (AWD) technique,
-            `{stats['ch4'][m]['annual']:.1f} kg C yr-1` (or `{stats['ch4'][m]['daily']:.2f} kg C d-1`),
-            which is equivalent to `{int(stats['ch4'][m]['gwp'])} kg CO2-eq yr-1`, would be released `as Methane`. 
-            However, this management change would also result in `N2O emissions` of 
-            `{stats['n2o'][m]['annual']:.2f} kg N yr-1` (or `{(stats['n2o'][m]['daily']*1000):.1f} g N d-1`), 
-            which would be equivalent to `{int(stats['n2o'][m]['gwp'])} kg CO2-eq yr-1`.
-            """)
-
-        awd_deployed = st.slider("Ratio of AWD deployment", 1, 100, 50)
-
-        # comparison
-        cf_total = (stats['ch4']['cf']['gwp'] + stats['n2o']['cf']['gwp']) 
-        awd_total = (stats['ch4']['awd']['gwp'] + stats['n2o']['awd']['gwp']) * (awd_deployed * 0.01) + \
-                    (stats['ch4']['cf']['gwp'] + stats['n2o']['cf']['gwp']) * (1 - (awd_deployed * 0.01))
-
-        diff = abs(cf_total - awd_total)
-
-        change = 'lower' if awd_total < cf_total else 'raise'
-        change2 = 'reduction' if awd_total < cf_total else 'increase'
-
-        change_pct = abs(1 - (awd_total / cf_total))*100
-
-        st.markdown( f"""
-            >**A `{awd_deployed}% change to AWD` management would thus `{change}` the total GHG emissions
-            from rice paddies by `{change_pct:.1f} %` (a `GWP {change2} of {diff:.0f} kg CO2-eq yr-1`) compared to the conventional practice.**""")
+        create_report(data_orig_cf, data_orig_awd)
 
         # maps
         st.subheader("Spatial distribution of GHG emissions")
