@@ -71,10 +71,11 @@ st.sidebar.subheader("General")
 
 show_intro = st.sidebar.checkbox("Show intro", value=True)
 show_code = st.sidebar.checkbox("Show code", value=False)
+show_report = st.sidebar.checkbox("Show report", value=False)
 
 if show_intro:
     st.markdown("""\
-        ## Intro
+        ## Introduction
         We use [streamlit](https://streamlit.io) to explore some simulation 
         results of the [LandscapeDNDC](https://ldndc.imk-ifu.kit.edu) biogeochemical model. The 
         simulations were conducted as part of [Introducing non-flooded crops in rice-dominated
@@ -93,14 +94,15 @@ if show_intro:
         > *emissions, the water balance, and other important ecosystem services of rice*
         > *cropping systems.*""")
 
+st.markdown("""\
+    App created by
+    [Christian Werner (christian.werner@kit.edu)](https://www.christianwerner.net)\n""")
+
 if show_code:
     st.header("The streamlit code of this demo")
     st.markdown("Check out the full source code of this app at https://www.github.com/cwerner/adl01_streamlit-demo.")
     st.code(open(__file__).read())
 
-st.markdown("""\
-    App created by
-    [Christian Werner (christian.werner@kit.edu)](https://www.christianwerner.net)\n""")
 
 @st.cache(allow_output_mutation=True)
 def load_raw_data_awd():
@@ -182,17 +184,17 @@ if (('dC_ch4_emis' in vars) and len(vars) > 1 and only_ghg_vars == False):
 st.sidebar.subheader("Data selection")
 ts = st.sidebar.radio("Show daily or annual data", ['daily', 'annual'])
 
+# data smoothing
 smooth_chk = st.sidebar.empty()
 smooth_slider = st.sidebar.empty()
-
 smooth = smooth_chk.checkbox("Smooth (daily) data", key='0')
-
 if smooth:
     smooth_rate = smooth_slider.slider("smoothing rate (days)", 7, 30, 7)
 
-year_slider = st.sidebar.empty()
-
 mana = st.sidebar.radio("Choose rice management", ['Conventional', 'AWD'])
+
+# year selection
+year_slider = st.sidebar.empty()
 
 # prepare data/ apply options
 ds = ds_cf[vars] if mana == 'conventional' else ds_awd[vars]
@@ -218,7 +220,7 @@ if smooth:
 min_year = data.index.min().to_pydatetime().year
 max_year = data.index.max().to_pydatetime().year
 
-year_filter = year_slider.slider('year range', min_year, max_year, (min_year, max_year))
+year_filter = year_slider.slider('Select years', min_year, max_year, (min_year, max_year))
 #data = data[ (data.index >= str(year_filter[0])) & (data.index <= str(year_filter[1])) ]
 
 def limit_data(df):
@@ -244,65 +246,67 @@ if ts == 'daily':
 else:
     bar_plot(data)
 
-# reporting
-st.header("Data report")
+if show_report:
+    # reporting
+    st.header("Data report")
 
-stats = {}
-for var in gwp_vars:
-    gwp = n2o_gwp if 'n2o' in var else ch4_gwp
-    vname = 'n2o' if 'n2o' in var else 'ch4'
-    stats[vname] = {}
-    for m in ['cf', 'awd']:
-        stats[vname][m] = {}
-        data_orig = data_orig_cf if m == 'cf' else data_orig_awd 
-        annual_sum = data_orig[var].groupby(data_orig.index.year).sum().mean()
-        annual_gwp = annual_sum * gwp
-        daily_mean = data_orig[var].mean()
-        stats[vname][m]['annual'] = annual_sum
-        stats[vname][m]['gwp'] = annual_gwp
-        stats[vname][m]['daily'] = daily_mean
+    stats = {}
+    for var in gwp_vars:
+        gwp = n2o_gwp if 'n2o' in var else ch4_gwp
+        vname = 'n2o' if 'n2o' in var else 'ch4'
+        stats[vname] = {}
+        for m in ['cf', 'awd']:
+            stats[vname][m] = {}
+            data_orig = data_orig_cf if m == 'cf' else data_orig_awd 
+            annual_sum = data_orig[var].groupby(data_orig.index.year).sum().mean()
+            annual_gwp = annual_sum * gwp
+            daily_mean = data_orig[var].mean()
+            stats[vname][m]['annual'] = annual_sum
+            stats[vname][m]['gwp'] = annual_gwp
+            stats[vname][m]['daily'] = daily_mean
 
-# individual contributions (conventional)
-m = 'cf'
-st.markdown( f"""
-    With conventional management, rice paddies of the Philippines emitted
-    `{stats['ch4'][m]['annual']:.1f} kg C yr-1` (or `{stats['ch4'][m]['daily']:.2f} kg C d-1`)
-    as `Methane`. This amounts to a GWP-equivalent of `{int(stats['ch4'][m]['gwp'])} CO2-eq yr-1` [1].
-    In addition, `N2O emissions` of `{stats['n2o'][m]['annual']:.2f} kg N yr-1` (or
-    `{(stats['n2o'][m]['daily']*1000):.1f} g N d-1`) were released to the atmosphere. 
-    These emissions amount to `{int(stats['n2o'][m]['gwp'])} kg CO2-eq yr-1`.  
-    """)
+    # individual contributions (conventional)
+    m = 'cf'
+    st.markdown( f"""
+        With conventional management, rice paddies of the Philippines emitted
+        `{stats['ch4'][m]['annual']:.1f} kg C yr-1` (or `{stats['ch4'][m]['daily']:.2f} kg C d-1`)
+        as `Methane`. This amounts to a GWP-equivalent of `{int(stats['ch4'][m]['gwp'])} CO2-eq yr-1` [1].
+        In addition, `N2O emissions` of `{stats['n2o'][m]['annual']:.2f} kg N yr-1` (or
+        `{(stats['n2o'][m]['daily']*1000):.1f} g N d-1`) were released to the atmosphere. 
+        These emissions amount to `{int(stats['n2o'][m]['gwp'])} kg CO2-eq yr-1`.  
+        """)
 
-# individual contributions (awd)
-m = 'awd'
+    # individual contributions (awd)
+    m = 'awd'
 
-st.markdown( f"""    
-    If management would be switched to alternate-wetting and drying (AWD) technique,
-    `{stats['ch4'][m]['annual']:.1f} kg C yr-1` (or `{stats['ch4'][m]['daily']:.2f} kg C d-1`),
-    which is equivalent to `{int(stats['ch4'][m]['gwp'])} kg CO2-eq yr-1`, would be released `as Methane`. 
-    However, this management change would also result in `N2O emissions` of 
-    `{stats['n2o'][m]['annual']:.2f} kg N yr-1` (or `{(stats['n2o'][m]['daily']*1000):.1f} g N d-1`), 
-    which would be equivalent to `{int(stats['n2o'][m]['gwp'])} kg CO2-eq yr-1`.
-    """)
+    st.markdown( f"""    
+        If management would be switched to alternate-wetting and drying (AWD) technique,
+        `{stats['ch4'][m]['annual']:.1f} kg C yr-1` (or `{stats['ch4'][m]['daily']:.2f} kg C d-1`),
+        which is equivalent to `{int(stats['ch4'][m]['gwp'])} kg CO2-eq yr-1`, would be released `as Methane`. 
+        However, this management change would also result in `N2O emissions` of 
+        `{stats['n2o'][m]['annual']:.2f} kg N yr-1` (or `{(stats['n2o'][m]['daily']*1000):.1f} g N d-1`), 
+        which would be equivalent to `{int(stats['n2o'][m]['gwp'])} kg CO2-eq yr-1`.
+        """)
 
-awd_deployed = st.slider("Ratio of AWD deployment", 1, 100, 50)
+    awd_deployed = st.slider("Ratio of AWD deployment", 1, 100, 50)
 
-# comparison
-cf_total = (stats['ch4']['cf']['gwp'] + stats['n2o']['cf']['gwp']) 
-awd_total = (stats['ch4']['awd']['gwp'] + stats['n2o']['awd']['gwp']) * (awd_deployed * 0.01) + \
-            (stats['ch4']['cf']['gwp'] + stats['n2o']['cf']['gwp']) * (1 - (awd_deployed * 0.01))
+    # comparison
+    cf_total = (stats['ch4']['cf']['gwp'] + stats['n2o']['cf']['gwp']) 
+    awd_total = (stats['ch4']['awd']['gwp'] + stats['n2o']['awd']['gwp']) * (awd_deployed * 0.01) + \
+                (stats['ch4']['cf']['gwp'] + stats['n2o']['cf']['gwp']) * (1 - (awd_deployed * 0.01))
 
-diff = abs(cf_total - awd_total)
+    diff = abs(cf_total - awd_total)
 
-change = 'lower' if awd_total < cf_total else 'raise'
-change2 = 'reduction' if awd_total < cf_total else 'increase'
+    change = 'lower' if awd_total < cf_total else 'raise'
+    change2 = 'reduction' if awd_total < cf_total else 'increase'
 
-change_pct = abs(1 - (awd_total / cf_total))*100
+    change_pct = abs(1 - (awd_total / cf_total))*100
 
-st.markdown( f"""
-    >**A `{awd_deployed}% change to AWD` management would thus `{change}` the total GHG emissions
-    from rice paddies by `{change_pct:.1f} %` (a `GWP {change2} of {diff:.0f} kg CO2-eq yr-1`) compared to the conventional practice.**""")
+    st.markdown( f"""
+        >**A `{awd_deployed}% change to AWD` management would thus `{change}` the total GHG emissions
+        from rice paddies by `{change_pct:.1f} %` (a `GWP {change2} of {diff:.0f} kg CO2-eq yr-1`) compared to the conventional practice.**""")
 
+# footer
 st.markdown("[1] GWP calculation based on the IPCC, 5th Assessment Report")
 
 
