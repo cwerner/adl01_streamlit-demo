@@ -13,6 +13,19 @@ import matplotlib.pyplot as plt
 n2o_gwp = 265
 ch4_gwp = 28
 
+fluxnames = {'dN_n2o_emis': 'N2O Emission', 
+            'dN_no_emis': 'NO(x) Emission',
+            'dN_nh3_emis': 'NH3 Emission',
+            'dN_n2_emis': 'N2 Emission',
+            'dN_no3_leach': 'NO3 Leaching',
+            'dN_nh4_leach': 'NH4 leaching',
+            'dN_don_leach': 'DON leaching',
+            'dN_up_min': 'Plant N uptake',
+            'dN_dep': 'Atmos. N deposition',
+            'dN_n2_fix': 'Biological N fixation',
+            'dC_ch4_emis': 'CH4 Emission'}
+
+
 @st.cache(allow_output_mutation=True)
 def load_raw_data_awd():
     return xr.open_dataset('../data/demo1_philippines/default_awd_hr_200_nobund_daily_ts_ha.nc')
@@ -190,253 +203,237 @@ def plot_maps(management='Conventional', year=None):
 
     return fig
 
+def main():
+    st.title('Data explorer for LandscapeDNDC Philippines sims')
 
-st.title('Data explorer for LandscapeDNDC Philippines sims')
+    st.sidebar.header("Options")
+    st.sidebar.subheader("General")
 
-st.sidebar.header("Options")
-st.sidebar.subheader("General")
+    show_intro = st.sidebar.checkbox("Show intro", value=True)
+    show_code = st.sidebar.checkbox("Show code", value=False)
+    show_report = st.sidebar.checkbox("Show report & maps", value=False)
 
-show_intro = st.sidebar.checkbox("Show intro", value=True)
-show_code = st.sidebar.checkbox("Show code", value=False)
-show_report = st.sidebar.checkbox("Show report & maps", value=False)
+    if show_intro:
+        st.markdown("""\
+            ## Introduction
+            We use [streamlit](https://streamlit.io) to explore some simulation 
+            results of the [LandscapeDNDC](https://ldndc.imk-ifu.kit.edu) biogeochemical model. The 
+            simulations were conducted as part of [Introducing non-flooded crops in rice-dominated
+            landscapes: Impact on CarbOn, Nitrogen and water budgets (ICON)](http://www.uni-giessen.de/faculties/f08/departments/tsz/animal-ecology/iconproject/iconindex)
+            by [David Kraus](https://www.imk-ifu.kit.edu/staff_David_Kraus.php) and 
+            [Christian Werner](https://www.imk-ifu.kit.edu/staff_Christian_Werner.php) at Campus Alpin, IMK-IFU,
+            Karlsruhe Institute of Technology.
 
-if show_intro:
+            A brief summary of the project:   
+            > *The interdisciplinary and transdisciplinary research unit ICON aims at exploring*
+            > *and quantifying the ecological consequences of future changes in rice production*
+            > *in SE Asia. A particular focus lies on the consequences of altered flooding*
+            > *regimes (flooded vs. non-flooded), crop diversification (wet rice vs. *
+            > *dry rice vs. maize) and different crop management strategies (N fertilization)*
+            > *on the biogeochemical cycling of carbon and nitrogen, the associated greenhouse gas*
+            > *emissions, the water balance, and other important ecosystem services of rice*
+            > *cropping systems.*""")
+
     st.markdown("""\
-        ## Introduction
-        We use [streamlit](https://streamlit.io) to explore some simulation 
-        results of the [LandscapeDNDC](https://ldndc.imk-ifu.kit.edu) biogeochemical model. The 
-        simulations were conducted as part of [Introducing non-flooded crops in rice-dominated
-        landscapes: Impact on CarbOn, Nitrogen and water budgets (ICON)](http://www.uni-giessen.de/faculties/f08/departments/tsz/animal-ecology/iconproject/iconindex)
-        by [David Kraus](https://www.imk-ifu.kit.edu/staff_David_Kraus.php) and 
-        [Christian Werner](https://www.imk-ifu.kit.edu/staff_Christian_Werner.php) at Campus Alpin, IMK-IFU,
-        Karlsruhe Institute of Technology.
+        App created by
+        [Christian Werner (christian.werner@kit.edu)](https://www.christianwerner.net)\n""")
 
-        A brief summary of the project:   
-        > *The interdisciplinary and transdisciplinary research unit ICON aims at exploring*
-        > *and quantifying the ecological consequences of future changes in rice production*
-        > *in SE Asia. A particular focus lies on the consequences of altered flooding*
-        > *regimes (flooded vs. non-flooded), crop diversification (wet rice vs. *
-        > *dry rice vs. maize) and different crop management strategies (N fertilization)*
-        > *on the biogeochemical cycling of carbon and nitrogen, the associated greenhouse gas*
-        > *emissions, the water balance, and other important ecosystem services of rice*
-        > *cropping systems.*""")
-
-st.markdown("""\
-    App created by
-    [Christian Werner (christian.werner@kit.edu)](https://www.christianwerner.net)\n""")
-
-if show_code:
-    st.header("The streamlit code of this demo")
-    st.markdown("Check out the full source code of this app at https://www.github.com/cwerner/adl01_streamlit-demo.")
-    st.code(open(__file__).read())
+    if show_code:
+        st.header("The streamlit code of this demo")
+        st.markdown("Check out the full source code of this app at https://www.github.com/cwerner/adl01_streamlit-demo.")
+        st.code(open(__file__).read())
 
 
 
-varsubset = []
-varnames = {'aC_change': 'annual C change',
-            'aN_change': 'annual N change',
-            'C_soil': 'soil C stocks',
-            'N_soil': 'soil N stocks'}
+    varsubset = []
+    varnames = {'aC_change': 'annual C change',
+                'aN_change': 'annual N change',
+                'C_soil': 'soil C stocks',
+                'N_soil': 'soil N stocks'}
 
-ds_awd = load_raw_data_awd()
-ds_cf  = load_raw_data_cf()
+    ds_awd = load_raw_data_awd()
+    ds_cf  = load_raw_data_cf()
 
-ds_awd_gc = load_raw_data_awd_gridcell()
-ds_cf_gc  = load_raw_data_cf_gridcell()
+    ds_awd_gc = load_raw_data_awd_gridcell()
+    ds_cf_gc  = load_raw_data_cf_gridcell()
 
-# some simple altair plot
-fluxes = [v for v in ds_awd.data_vars.keys() if 'dN_' in v] + \
-         [v for v in ds_awd.data_vars.keys() if 'dC_' in v]
+    # some simple altair plot
+    fluxes = [v for v in ds_awd.data_vars.keys() if 'dN_' in v] + \
+            [v for v in ds_awd.data_vars.keys() if 'dC_' in v]
 
-fluxes = [f for f in fluxes if f not in ['dN_litter','dN_fertilizer','dC_bud']]
-fluxnames = {'dN_n2o_emis': 'N2O Emission', 
-             'dN_no_emis': 'NO(x) Emission',
-             'dN_nh3_emis': 'NH3 Emission',
-             'dN_n2_emis': 'N2 Emission',
-             'dN_no3_leach': 'NO3 Leaching',
-             'dN_nh4_leach': 'NH4 leaching',
-             'dN_don_leach': 'DON leaching',
-             'dN_up_min': 'Plant N uptake',
-             'dN_dep': 'Atmos. N deposition',
-             'dN_n2_fix': 'Biological N fixation',
-             'dC_ch4_emis': 'CH4 Emission'}
+    fluxes = [f for f in fluxes if f not in ['dN_litter','dN_fertilizer','dC_bud']]
 
-vargroups = {'N gas exchange': ['dN_n2o_emis', 'dN_no_emis', 'dN_nh3_emis', 'dN_n2_emis', 'dN_dep', 'dN_n2_fix'] ,
-             'N leaching': [], 
-             'other': [] }
+    vargroups = {'N gas exchange': ['dN_n2o_emis', 'dN_no_emis', 'dN_nh3_emis', 'dN_n2_emis', 'dN_dep', 'dN_n2_fix'] ,
+                'N leaching': [], 
+                'other': [] }
 
-st.header("Data exploration")
+    st.header("Data exploration")
 
-only_ghg_vars = st.checkbox('Only GHG emissions (values converted to GWP [1])')
-if only_ghg_vars:
-    fluxes = ['dN_n2o_emis', 'dC_ch4_emis']
-    default_sel = fluxes
-else:
-    default_sel = ['dN_n2o_emis']
+    only_ghg_vars = st.checkbox('Only GHG emissions (values converted to GWP [1])')
+    if only_ghg_vars:
+        fluxes = ['dN_n2o_emis', 'dC_ch4_emis']
+        default_sel = fluxes
+    else:
+        default_sel = ['dN_n2o_emis']
 
-sel_vars = st.empty()
-vars = sel_vars.multiselect("Pick one or multiple variables (click into field for selection)", 
-                            fluxes, 
-                            default=default_sel,
-                            format_func=fluxnames.get, key='a')
-
-# hack to prevent downstream code to crash if no variables are selected
-if len(vars) == 0:
+    sel_vars = st.empty()
     vars = sel_vars.multiselect("Pick one or multiple variables (click into field for selection)", 
                                 fluxes, 
                                 default=default_sel,
-                                format_func=fluxnames.get, key='b')
+                                format_func=fluxnames.get, key='a')
+
+    # hack to prevent downstream code to crash if no variables are selected
+    if len(vars) == 0:
+        return
+
+    if (('dC_ch4_emis' in vars) and len(vars) > 1 and only_ghg_vars == False):
+        st.warning("⚠️ C and N variables in same plot. Tick option above... Only N-based fluxes shown.")
+        vars.remove('dC_ch4_emis')
+
+    # sidebar options
+    st.sidebar.subheader("Data selection")
+    sel_timestep = st.sidebar.radio("Show daily or annual data", ['daily', 'annual'])
+
+    # data smoothing
+    smooth = st.sidebar.checkbox("Smooth (daily) data")
+    smooth_slider = st.sidebar.empty()
+    if smooth:
+        smooth_rate = smooth_slider.slider("smoothing rate (days)", 7, 30, 7)
+
+    mana = st.sidebar.radio("Choose rice management", ['Conventional', 'AWD'])
+
+    # year selection
+    year_slider = st.sidebar.empty()
+
+    # prepare data/ apply options
+    ds = ds_cf[vars] if mana == 'Conventional' else ds_awd[vars]
+
+    # for later statistics
+    gwp_vars = ['dN_n2o_emis', 'dC_ch4_emis']
+    data_orig_cf = ds_cf_gc[gwp_vars].to_dataframe()
+    data_orig_awd = ds_awd_gc[gwp_vars].to_dataframe()
+
+    if sel_timestep == 'daily':
+        data = ds.to_dataframe()
+    else:
+        data = ds.groupby('time.year').sum().to_dataframe()
+        data.index = pd.to_datetime(data.index, format='%Y')
+
+        # disable smooth option as we only allow it for daily data
+        smooth_chk.checkbox("Smooth (daily) data", value=False, key='b')
+        smooth_slider.empty()
+
+    if smooth:
+        data = data.rolling(window=smooth_rate, center=True).mean()
+
+    min_year = data.index.min().to_pydatetime().year
+    max_year = data.index.max().to_pydatetime().year
+
+    year_filter = year_slider.slider('Select years', min_year, max_year, (min_year, max_year))
+
+    def limit_data_df(df):
+        return df[ (df.index >= str(year_filter[0])) & (df.index <= str(year_filter[1])) ] 
 
 
-if (('dC_ch4_emis' in vars) and len(vars) > 1 and only_ghg_vars == False):
-    st.warning("⚠️ C and N variables in same plot. Tick option above... Only N-based fluxes shown.")
-    vars.remove('dC_ch4_emis')
+    data = limit_data_df(data)
+    data_orig_cf = limit_data_df(data_orig_cf)
+    data_orig_awd = limit_data_df(data_orig_awd)
 
-# sidebar options
-st.sidebar.subheader("Data selection")
-sel_timestep = st.sidebar.radio("Show daily or annual data", ['daily', 'annual'])
+    if only_ghg_vars:
+        if 'dN_n2o_emis' in data.columns.values:
+            data['dN_n2o_emis'] = convert_n2o_gwp(data['dN_n2o_emis'])
+        if 'dC_ch4_emis' in data.columns.values:
+            data['dC_ch4_emis'] = convert_ch4_gwp(data['dC_ch4_emis'])
+    
 
-# data smoothing
-smooth_chk = st.sidebar.empty()
-smooth_slider = st.sidebar.empty()
-smooth = smooth_chk.checkbox("Smooth (daily) data", key='0')
-if smooth:
-    smooth_rate = smooth_slider.slider("smoothing rate (days)", 7, 30, 7)
+    # plotting canvas
 
-mana = st.sidebar.radio("Choose rice management", ['Conventional', 'AWD'])
+    # compose units for plot
+    if only_ghg_vars:
+        units = 'kg GWP-eq'
+    elif ('dC_ch4_emis' in vars) and len(vars) == 1:
+        units = 'kg C'
+    else:
+        units = 'kg N'
 
-# year selection
-year_slider = st.sidebar.empty()
-
-# prepare data/ apply options
-ds = ds_cf[vars] if mana == 'Conventional' else ds_awd[vars]
-
-
-
-# for later statistics
-gwp_vars = ['dN_n2o_emis', 'dC_ch4_emis']
-data_orig_cf = ds_cf_gc[gwp_vars].to_dataframe()
-data_orig_awd = ds_awd_gc[gwp_vars].to_dataframe()
-
-if sel_timestep == 'daily':
-    data = ds.to_dataframe()
-else:
-    data = ds.groupby('time.year').sum().to_dataframe()
-    data.index = pd.to_datetime(data.index, format='%Y')
-
-    # disable smooth option as we only allow it for daily data
-    smooth_chk.checkbox("Smooth (daily) data", value=False, key='b')
-    smooth_slider.empty()
-
-if smooth:
-    data = data.rolling(window=smooth_rate, center=True).mean()
-
-min_year = data.index.min().to_pydatetime().year
-max_year = data.index.max().to_pydatetime().year
-
-year_filter = year_slider.slider('Select years', min_year, max_year, (min_year, max_year))
-
-def limit_data_df(df):
-    return df[ (df.index >= str(year_filter[0])) & (df.index <= str(year_filter[1])) ] 
-
-
-data = limit_data_df(data)
-data_orig_cf = limit_data_df(data_orig_cf)
-data_orig_awd = limit_data_df(data_orig_awd)
-
-if only_ghg_vars:
-    if 'dN_n2o_emis' in data.columns.values:
-        data['dN_n2o_emis'] = convert_n2o_gwp(data['dN_n2o_emis'])
-    if 'dC_ch4_emis' in data.columns.values:
-        data['dC_ch4_emis'] = convert_ch4_gwp(data['dC_ch4_emis'])
-   
-
-# plotting canvas
-
-# compose units for plot
-if only_ghg_vars:
-    units = 'kg GWP-eq'
-elif ('dC_ch4_emis' in vars) and len(vars) == 1:
-    units = 'kg C'
-else:
-    units = 'kg N'
-
-# plots
-if sel_timestep == 'daily':
-    line_plot(data, units=f'[{units} ha-1 yr-1]')
-else:
-    bar_plot(data, units=f'[{units} yr-1]')
+    # plots
+    if sel_timestep == 'daily':
+        line_plot(data, units=f'[{units} ha-1 yr-1]')
+    else:
+        bar_plot(data, units=f'[{units} yr-1]')
 
 
 
-if show_report:
-    # reporting
-    st.header("Data report")
+    if show_report:
+        # reporting
+        st.header("Data report")
 
-    stats = {}
-    for var in gwp_vars:
-        gwp = n2o_gwp if 'n2o' in var else ch4_gwp
-        vname = 'n2o' if 'n2o' in var else 'ch4'
-        stats[vname] = {}
-        for m in ['cf', 'awd']:
-            stats[vname][m] = {}
-            data_orig = data_orig_cf if m == 'cf' else data_orig_awd 
-            annual_sum = data_orig[var].groupby(data_orig.index.year).sum().mean()
-            annual_gwp = annual_sum * gwp
-            daily_mean = data_orig[var].mean()
-            stats[vname][m]['annual'] = annual_sum
-            stats[vname][m]['gwp'] = annual_gwp
-            stats[vname][m]['daily'] = daily_mean
+        stats = {}
+        for var in gwp_vars:
+            gwp = n2o_gwp if 'n2o' in var else ch4_gwp
+            vname = 'n2o' if 'n2o' in var else 'ch4'
+            stats[vname] = {}
+            for m in ['cf', 'awd']:
+                stats[vname][m] = {}
+                data_orig = data_orig_cf if m == 'cf' else data_orig_awd 
+                annual_sum = data_orig[var].groupby(data_orig.index.year).sum().mean()
+                annual_gwp = annual_sum * gwp
+                daily_mean = data_orig[var].mean()
+                stats[vname][m]['annual'] = annual_sum
+                stats[vname][m]['gwp'] = annual_gwp
+                stats[vname][m]['daily'] = daily_mean
 
-    # individual contributions (conventional)
-    m = 'cf'
-    st.markdown( f"""
-        With conventional management, rice paddies of the Philippines emitted
-        `{stats['ch4'][m]['annual']:.1f} kg C yr-1` (or `{stats['ch4'][m]['daily']:.2f} kg C d-1`)
-        as `Methane`. This amounts to a GWP-equivalent of `{int(stats['ch4'][m]['gwp'])} CO2-eq yr-1` [1].
-        In addition, `N2O emissions` of `{stats['n2o'][m]['annual']:.2f} kg N yr-1` (or
-        `{(stats['n2o'][m]['daily']*1000):.1f} g N d-1`) were released to the atmosphere. 
-        These emissions amount to `{int(stats['n2o'][m]['gwp'])} kg CO2-eq yr-1`.  
-        """)
+        # individual contributions (conventional)
+        m = 'cf'
+        st.markdown( f"""
+            With conventional management, rice paddies of the Philippines emitted
+            `{stats['ch4'][m]['annual']:.1f} kg C yr-1` (or `{stats['ch4'][m]['daily']:.2f} kg C d-1`)
+            as `Methane`. This amounts to a GWP-equivalent of `{int(stats['ch4'][m]['gwp'])} CO2-eq yr-1` [1].
+            In addition, `N2O emissions` of `{stats['n2o'][m]['annual']:.2f} kg N yr-1` (or
+            `{(stats['n2o'][m]['daily']*1000):.1f} g N d-1`) were released to the atmosphere. 
+            These emissions amount to `{int(stats['n2o'][m]['gwp'])} kg CO2-eq yr-1`.  
+            """)
 
-    # individual contributions (awd)
-    m = 'awd'
+        # individual contributions (awd)
+        m = 'awd'
 
-    st.markdown( f"""    
-        If management would be switched to alternate-wetting and drying (AWD) technique,
-        `{stats['ch4'][m]['annual']:.1f} kg C yr-1` (or `{stats['ch4'][m]['daily']:.2f} kg C d-1`),
-        which is equivalent to `{int(stats['ch4'][m]['gwp'])} kg CO2-eq yr-1`, would be released `as Methane`. 
-        However, this management change would also result in `N2O emissions` of 
-        `{stats['n2o'][m]['annual']:.2f} kg N yr-1` (or `{(stats['n2o'][m]['daily']*1000):.1f} g N d-1`), 
-        which would be equivalent to `{int(stats['n2o'][m]['gwp'])} kg CO2-eq yr-1`.
-        """)
+        st.markdown( f"""    
+            If management would be switched to alternate-wetting and drying (AWD) technique,
+            `{stats['ch4'][m]['annual']:.1f} kg C yr-1` (or `{stats['ch4'][m]['daily']:.2f} kg C d-1`),
+            which is equivalent to `{int(stats['ch4'][m]['gwp'])} kg CO2-eq yr-1`, would be released `as Methane`. 
+            However, this management change would also result in `N2O emissions` of 
+            `{stats['n2o'][m]['annual']:.2f} kg N yr-1` (or `{(stats['n2o'][m]['daily']*1000):.1f} g N d-1`), 
+            which would be equivalent to `{int(stats['n2o'][m]['gwp'])} kg CO2-eq yr-1`.
+            """)
 
-    awd_deployed = st.slider("Ratio of AWD deployment", 1, 100, 50)
+        awd_deployed = st.slider("Ratio of AWD deployment", 1, 100, 50)
 
-    # comparison
-    cf_total = (stats['ch4']['cf']['gwp'] + stats['n2o']['cf']['gwp']) 
-    awd_total = (stats['ch4']['awd']['gwp'] + stats['n2o']['awd']['gwp']) * (awd_deployed * 0.01) + \
-                (stats['ch4']['cf']['gwp'] + stats['n2o']['cf']['gwp']) * (1 - (awd_deployed * 0.01))
+        # comparison
+        cf_total = (stats['ch4']['cf']['gwp'] + stats['n2o']['cf']['gwp']) 
+        awd_total = (stats['ch4']['awd']['gwp'] + stats['n2o']['awd']['gwp']) * (awd_deployed * 0.01) + \
+                    (stats['ch4']['cf']['gwp'] + stats['n2o']['cf']['gwp']) * (1 - (awd_deployed * 0.01))
 
-    diff = abs(cf_total - awd_total)
+        diff = abs(cf_total - awd_total)
 
-    change = 'lower' if awd_total < cf_total else 'raise'
-    change2 = 'reduction' if awd_total < cf_total else 'increase'
+        change = 'lower' if awd_total < cf_total else 'raise'
+        change2 = 'reduction' if awd_total < cf_total else 'increase'
 
-    change_pct = abs(1 - (awd_total / cf_total))*100
+        change_pct = abs(1 - (awd_total / cf_total))*100
 
-    st.markdown( f"""
-        >**A `{awd_deployed}% change to AWD` management would thus `{change}` the total GHG emissions
-        from rice paddies by `{change_pct:.1f} %` (a `GWP {change2} of {diff:.0f} kg CO2-eq yr-1`) compared to the conventional practice.**""")
+        st.markdown( f"""
+            >**A `{awd_deployed}% change to AWD` management would thus `{change}` the total GHG emissions
+            from rice paddies by `{change_pct:.1f} %` (a `GWP {change2} of {diff:.0f} kg CO2-eq yr-1`) compared to the conventional practice.**""")
 
-    # maps
-    st.subheader("Spatial distribution of GHG emissions")
-    st.markdown("The following maps show the average annual emission for the selected management option...")
-    st.warning("⚠️ TODO: Fix cartopy setup in dokku deployment and use geo-axes in plotting")
-    st.pyplot(plot_maps(management=mana, year=range(year_filter[0], year_filter[1]+1)), bbox_inches='tight')
-
-
-# footer
-st.markdown("[1] GWP calculation based on the IPCC, 5th Assessment Report")
+        # maps
+        st.subheader("Spatial distribution of GHG emissions")
+        st.markdown("The following maps show the average annual emission for the selected management option...")
+        st.warning("⚠️ TODO: Fix cartopy setup in dokku deployment and use geo-axes in plotting")
+        st.pyplot(plot_maps(management=mana, year=range(year_filter[0], year_filter[1]+1)), bbox_inches='tight')
 
 
+    # footer
+    st.markdown("[1] GWP calculation based on the IPCC, 5th Assessment Report")
+
+
+if __name__ == "__main__":
+    main()
