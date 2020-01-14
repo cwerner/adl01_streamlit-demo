@@ -182,7 +182,7 @@ if (('dC_ch4_emis' in vars) and len(vars) > 1 and only_ghg_vars == False):
 
 # sidebar options
 st.sidebar.subheader("Data selection")
-ts = st.sidebar.radio("Show daily or annual data", ['daily', 'annual'])
+sel_timestep = st.sidebar.radio("Show daily or annual data", ['daily', 'annual'])
 
 # data smoothing
 smooth_chk = st.sidebar.empty()
@@ -197,14 +197,14 @@ mana = st.sidebar.radio("Choose rice management", ['Conventional', 'AWD'])
 year_slider = st.sidebar.empty()
 
 # prepare data/ apply options
-ds = ds_cf[vars] if mana == 'conventional' else ds_awd[vars]
+ds = ds_cf[vars] if mana == 'Conventional' else ds_awd[vars]
 
 # for later statistics
 gwp_vars = ['dN_n2o_emis', 'dC_ch4_emis']
 data_orig_cf = ds_cf_gc[gwp_vars].to_dataframe()
 data_orig_awd = ds_awd_gc[gwp_vars].to_dataframe()
 
-if ts == 'daily':
+if sel_timestep == 'daily':
     data = ds.to_dataframe()
 else:
     data = ds.groupby('time.year').sum().to_dataframe()
@@ -248,7 +248,7 @@ else:
     units = 'kg N'
 
 # plots
-if ts == 'daily':
+if sel_timestep == 'daily':
     line_plot(data, units=f'[{units} ha-1 yr-1]')
 else:
     bar_plot(data, units=f'[{units} yr-1]')
