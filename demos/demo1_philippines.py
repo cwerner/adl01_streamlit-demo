@@ -12,12 +12,69 @@ import altair as alt
 n2o_gwp = 265
 ch4_gwp = 28
 
-st.header('Data explorer for LandscapeDNDC Philippines sims')
+def convert_ch4_gwp(value):
+    return value * ch4_gwp * (16./12.)
 
-descr = st.checkbox("Show description", value=True)
+def convert_n2o_gwp(value):
+    return value * n2o_gwp * (44./28.)
 
-if descr:
+def identify_index_col(df):
+    for c in df.columns.values:
+        print(c)
+        if str(c).lower() in ['time', 'date', 'year']:
+            return str(c)
+    return None
+
+def process_df(df, vars):
+    df_ = df.reset_index()[vars] if vars else df.reset_index()
+    if vars is None:
+        vars = list(df.columns.values)
+
+    # rename columns
+    for v in vars:
+        df_ = df_.rename({v: fluxnames.get(v)}, axis=1)
+
+    index_col_ = identify_index_col(df_)
+    df_ = df_.melt(index_col_, var_name='variable', value_name='value')
+    return (index_col_, df_)
+
+def line_plot(df, vars=None):
+
+    index_, df_ = process_df(df, vars)
+    c = alt.Chart(df_).mark_line().encode(
+            alt.X(f'{index_}:T', title=''),
+            alt.Y('value:Q', title='Flux [kg N yr-1]'), 
+            alt.Color('variable:N', legend=alt.Legend(title='')), 
+        ).configure_axis(
+            grid=False
+        )
+    st.altair_chart(c)
+
+def bar_plot(df, vars=None):
+
+    index_, df_ = process_df(df, vars)
+    df_['year'] = df_[index_].dt.year
+    c = alt.Chart(df_).mark_bar().encode(
+            alt.X('year:O', title=''),
+            alt.Y('value:Q', title='Flux [kg N yr-1]'), 
+            alt.Color('variable:N', legend=alt.Legend(title='')), 
+        ).configure_axis(
+            grid=False
+        )
+    st.altair_chart(c)    
+
+
+st.title('Data explorer for LandscapeDNDC Philippines sims')
+
+st.sidebar.header("Options")
+st.sidebar.subheader("General")
+
+show_intro = st.sidebar.checkbox("Show intro", value=True)
+show_code = st.sidebar.checkbox("Show code", value=False)
+
+if show_intro:
     st.markdown("""\
+        ## Intro
         We use [streamlit](https://streamlit.io) to explore some simulation 
         results of the [LandscapeDNDC](https://ldndc.imk-ifu.kit.edu) biogeochemical model. The 
         simulations were conducted as part of [Introducing non-flooded crops in rice-dominated
@@ -28,13 +85,18 @@ if descr:
 
         A brief summary of the project:   
         > *The interdisciplinary and transdisciplinary research unit ICON aims at exploring*
-        > *and quantify- ing the ecological consequences of future changes in rice production*
-        > *in SE Asia. A particular focus will be on the consequences of altered flooding*
+        > *and quantifying the ecological consequences of future changes in rice production*
+        > *in SE Asia. A particular focus lies on the consequences of altered flooding*
         > *regimes (flooded vs. non-flooded), crop diversification (wet rice vs. *
         > *dry rice vs. maize) and different crop management strategies (N fertilization)*
         > *on the biogeochemical cycling of carbon and nitrogen, the associated greenhouse gas*
         > *emissions, the water balance, and other important ecosystem services of rice*
         > *cropping systems.*""")
+
+if show_code:
+    st.header("The streamlit code of this demo")
+    st.markdown("Check out the full source code of this app at https://www.github.com/cwerner/adl01_streamlit-demo.")
+    st.code(open(__file__).read())
 
 st.markdown("""\
     App created by
@@ -57,16 +119,10 @@ def load_raw_data_cf_gridcell():
     return xr.open_dataset('../data/demo1_philippines/default_cf_hr_200_nobund_daily_ts_gridcell.nc')
 
 varsubset = []
-
 varnames = {'aC_change': 'annual C change',
             'aN_change': 'annual N change',
             'C_soil': 'soil C stocks',
             'N_soil': 'soil N stocks'}
-
-# @st.cache(show_spinner=False)
-# def load_nongendered_data():
-#     df = pd.read_csv("data/total.csv", index_col=0)
-#     return df
 
 ds_awd = load_raw_data_awd()
 ds_cf  = load_raw_data_cf()
@@ -95,22 +151,35 @@ vargroups = {'N gas exchange': ['dN_n2o_emis', 'dN_no_emis', 'dN_nh3_emis', 'dN_
              'N leaching': [], 
              'other': [] }
 
-st.subheader("Data exploration")
+st.header("Data exploration")
+
 only_ghg_vars = st.checkbox('Only GHG emissions (values converted to GWP [1])')
 if only_ghg_vars:
     fluxes = ['dN_n2o_emis', 'dC_ch4_emis']
+    default_sel = fluxes
+else:
+    default_sel = ['dN_n2o_emis']
 
-vars = st.multiselect("Select one or multiple variables to plot", 
-                      fluxes, 
-                      default=['dN_n2o_emis'],
-                      format_func=fluxnames.get)
+sel_vars = st.empty()
+vars = sel_vars.multiselect("Pick one or multiple variables (click into field for selection)", 
+                            fluxes, 
+                            default=default_sel,
+                            format_func=fluxnames.get, key='a')
 
-# if no variable is selected pick the first one so the script does not crash
+# hack to prevent downstream code to crash if no variables are selected
 if len(vars) == 0:
-    vars = fluxes[0]
+    vars = sel_vars.multiselect("Pick one or multiple variables (click into field for selection)", 
+                                fluxes, 
+                                default=default_sel,
+                                format_func=fluxnames.get, key='b')
+
+
+if (('dC_ch4_emis' in vars) and len(vars) > 1 and only_ghg_vars == False):
+    st.warning("⚠️ C and N variables in same plot. Tick option above... Only N-based fluxes shown.")
+    vars.remove('dC_ch4_emis')
 
 # sidebar options
-st.sidebar.subheader("Time range/ resolution")
+st.sidebar.subheader("Data selection")
 ts = st.sidebar.radio("Show daily or annual data", ['daily', 'annual'])
 
 smooth_chk = st.sidebar.empty()
@@ -119,12 +188,11 @@ smooth_slider = st.sidebar.empty()
 smooth = smooth_chk.checkbox("Smooth (daily) data", key='0')
 
 if smooth:
-    smooth_rate = smooth_slider.slider("Smooth rate (days)", 7, 30, 7)
+    smooth_rate = smooth_slider.slider("smoothing rate (days)", 7, 30, 7)
 
 year_slider = st.sidebar.empty()
 
-st.sidebar.subheader("Management")
-mana = st.sidebar.radio("Choose management type", ['conventional', 'AWD'])
+mana = st.sidebar.radio("Choose rice management", ['Conventional', 'AWD'])
 
 # prepare data/ apply options
 ds = ds_cf[vars] if mana == 'conventional' else ds_awd[vars]
@@ -150,7 +218,7 @@ if smooth:
 min_year = data.index.min().to_pydatetime().year
 max_year = data.index.max().to_pydatetime().year
 
-year_filter = year_slider.slider('Year range', min_year, max_year, (min_year, max_year))
+year_filter = year_slider.slider('year range', min_year, max_year, (min_year, max_year))
 #data = data[ (data.index >= str(year_filter[0])) & (data.index <= str(year_filter[1])) ]
 
 def limit_data(df):
@@ -162,53 +230,22 @@ data_orig_awd = limit_data(data_orig_awd)
 
 if only_ghg_vars:
     if 'dN_n2o_emis' in data.columns.values:
-        data['dN_n2o_emis'] = data['dN_n2o_emis'] * n2o_gwp
+        data['dN_n2o_emis'] = convert_n2o_gwp(data['dN_n2o_emis'])
     if 'dC_ch4_emis' in data.columns.values:
-        data['dC_ch4_emis'] = data['dC_ch4_emis'] * ch4_gwp
-    
-
-st.sidebar.subheader("Other options")
-
-show_data = st.sidebar.checkbox("Show data", value=False)
-show_code = st.sidebar.checkbox("Show code", value=False)
+        data['dC_ch4_emis'] = convert_ch4_gwp(data['dC_ch4_emis'])
+   
 
 
 # MAIN CANVAS
 
-
-def line_plot(df, vars=None, kind='line', index=None):
-    """A more explicit plotting routine"""
-    df_ = df.reset_index()[vars] if vars else df.reset_index()
-    if vars is None:
-        vars = list(df.columns.values)
-
-    # rename columns
-    for v in vars:
-        df_ = df_.rename({v: fluxnames.get(v)}, axis=1)
-
-    df_ = df_.melt('time', var_name='variable', value_name='value')
-    c = alt.Chart(df_).mark_line().encode(
-            alt.X('time:T', title=''),
-            alt.Y('value:Q', title='Flux [kg N yr-1]'), # axis=alt.Axis(title="Flux [kg N yr-1]")),
-            alt.Color('variable:N', legend=alt.Legend(title='')), #, mapping=fluxnames)),
-        ).configure_axis(
-            grid=False
-        )
-    st.altair_chart(c)
-
-
 # plots
 if ts == 'daily':
-    #    st.line_chart(data)
     line_plot(data)
-
 else:
-    st.bar_chart(data)
-
-
+    bar_plot(data)
 
 # reporting
-st.subheader("Summary report")
+st.header("Data report")
 
 stats = {}
 for var in gwp_vars:
@@ -244,7 +281,7 @@ st.markdown( f"""
     `{stats['ch4'][m]['annual']:.1f} kg C yr-1` (or `{stats['ch4'][m]['daily']:.2f} kg C d-1`),
     which is equivalent to `{int(stats['ch4'][m]['gwp'])} kg CO2-eq yr-1`, would be released `as Methane`. 
     However, this management change would also result in `N2O emissions` of 
-    `{stats['n2o'][m]['annual']:.2f} kg N yr-1` (or `{(stats['n2o'][m]['daily']*1000):.1f} kg N d-1`), 
+    `{stats['n2o'][m]['annual']:.2f} kg N yr-1` (or `{(stats['n2o'][m]['daily']*1000):.1f} g N d-1`), 
     which would be equivalent to `{int(stats['n2o'][m]['gwp'])} kg CO2-eq yr-1`.
     """)
 
@@ -268,13 +305,4 @@ st.markdown( f"""
 
 st.markdown("[1] GWP calculation based on the IPCC, 5th Assessment Report")
 
-
-# extra
-if show_data:
-    st.subheader("The current data selection")
-    st.write(data)
-
-if show_code:
-    st.subheader("The code of this demo")
-    st.code(open(__file__).read())
 
