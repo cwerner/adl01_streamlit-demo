@@ -1,7 +1,7 @@
 import streamlit as st
 import numpy as np
 import pandas as pd
-#from utils import hdi
+from utils import INTRO
 from string import capwords
 import textwrap
 import xarray as xr
@@ -9,11 +9,31 @@ import datetime
 import altair as alt
 import matplotlib.pyplot as plt
 import cartopy.crs as ccrs
+import matplotlib
+matplotlib.rcParams.update({'font.size': 10})
+import matplotlib.patches as mpatches
+import cartopy.feature as cfeature
 
+
+# Create a feature for States/Admin 1 regions at 1:50m from Natural Earth
+countries = cfeature.NaturalEarthFeature(
+    category='cultural',
+    name='admin_0_countries',
+    scale='50m',
+    facecolor='none')
+    
+ocean = cfeature.NaturalEarthFeature(
+        category='physical', 
+        name='ocean', 
+        scale='50m',
+        edgecolor='face',
+        facecolor=cfeature.COLORS['water'])
 
 # GWP for 100-yr time horizon  according to 5th IPCC report
 n2o_gwp = 265
 ch4_gwp = 28
+
+gwp_vars = ['dN_n2o_emis', 'dC_ch4_emis']
 
 fluxnames = {'dN_n2o_emis': 'N2O Emission', 
             'dN_no_emis': 'NO(x) Emission',
@@ -51,7 +71,6 @@ def load_raw_data_awd_annual():
 @st.cache(allow_output_mutation=True)
 def load_raw_data_cf_annual():
     return xr.open_dataset('../data/demo1_philippines/default_cf_hr_200_nobund_annual.nc')[['dC_ch4_emis', 'dN_n2o_emis']]
-
 
 
 def convert_ch4_gwp(value):
@@ -106,38 +125,6 @@ def bar_plot(df, vars=None, units=None):
 
 def plot_maps(management='Conventional', year=None):
 
-    # larger font
-    import matplotlib
-    matplotlib.rcParams.update({'font.size': 10})
-    import matplotlib.patches as mpatches
-    import cartopy.feature as cfeature
-    #import cartopy.io.shapereader as shapereader    
-
-    # Create a feature for States/Admin 1 regions at 1:50m from Natural Earth
-    countries = cfeature.NaturalEarthFeature(
-        category='cultural',
-        name='admin_0_countries',
-        scale='50m',
-        facecolor='none')
-
-    #countries2 = shapereader.natural_earth(resolution='50m',
-    #                                    category='cultural',
-    #                                    name='admin_0_countries')
-
-    #for country in shapereader.Reader(countries2).records():
-    #    if country.attributes['SU_A3'] == 'PHL':
-    #        philippines = country.geometry
-    #        break
-    #else:
-    #    raise ValueError('Unable to find the PHL boundary.')
-        
-    ocean = cfeature.NaturalEarthFeature(
-            category='physical', 
-            name='ocean', 
-            scale='50m',
-            edgecolor='face',
-            facecolor=cfeature.COLORS['water'])
-
     Dname = {}
     Dname['dC_ch4_emis'] = r'$\mathregular{CH_4\ emission\ [kg\ C\ ha^{-1}\ yr^{-1}]}$'
     Dname['dN_n2o_emis'] = r'$\mathregular{N_2O\ emission\ [kg\ N\ ha^{-1}\ yr^{-1}]}$'
@@ -187,12 +174,11 @@ def plot_maps(management='Conventional', year=None):
                         ax=ax, cmap=colors, transform=ccrs.PlateCarree(), 
                         vmin=0, vmax=50, extend='max')
 
-        #sublabels='ABC'
-        #ax.add_patch(mpatches.Rectangle(xy=[116.25, 19], width=1, height=1,
-        #                                    facecolor='none',
-        #                                    edgecolor='black',
-        #                                    alpha=1.0))
-        #                                    # transform=ccrs.PlateCarree()))
+        ax.add_patch(mpatches.Rectangle(xy=[116.25, 19], width=1, height=1,
+                                            facecolor='none',
+                                            edgecolor='black',
+                                            alpha=1.0,
+                                            transform=ccrs.PlateCarree()))
 
         sublabels = ['CH4', 'N2O', 'CH4+N2O']
 
@@ -215,25 +201,7 @@ def main():
     show_report = st.sidebar.checkbox("Show report & maps", value=False)
 
     if show_intro:
-        st.markdown("""\
-            ## Introduction
-            We use [streamlit](https://streamlit.io) to explore some simulation 
-            results of the [LandscapeDNDC](https://ldndc.imk-ifu.kit.edu) biogeochemical model. The 
-            simulations were conducted as part of [Introducing non-flooded crops in rice-dominated
-            landscapes: Impact on CarbOn, Nitrogen and water budgets (ICON)](http://www.uni-giessen.de/faculties/f08/departments/tsz/animal-ecology/iconproject/iconindex)
-            by [David Kraus](https://www.imk-ifu.kit.edu/staff_David_Kraus.php) and 
-            [Christian Werner](https://www.imk-ifu.kit.edu/staff_Christian_Werner.php) at Campus Alpin, IMK-IFU,
-            Karlsruhe Institute of Technology.
-
-            A brief summary of the project:   
-            > *The interdisciplinary and transdisciplinary research unit ICON aims at exploring*
-            > *and quantifying the ecological consequences of future changes in rice production*
-            > *in SE Asia. A particular focus lies on the consequences of altered flooding*
-            > *regimes (flooded vs. non-flooded), crop diversification (wet rice vs. *
-            > *dry rice vs. maize) and different crop management strategies (N fertilization)*
-            > *on the biogeochemical cycling of carbon and nitrogen, the associated greenhouse gas*
-            > *emissions, the water balance, and other important ecosystem services of rice*
-            > *cropping systems.*""")
+        st.markdown(INTRO)
 
     st.markdown("""\
         App created by
@@ -245,13 +213,6 @@ def main():
         st.code(open(__file__).read())
 
 
-
-    varsubset = []
-    varnames = {'aC_change': 'annual C change',
-                'aN_change': 'annual N change',
-                'C_soil': 'soil C stocks',
-                'N_soil': 'soil N stocks'}
-
     ds_awd = load_raw_data_awd()
     ds_cf  = load_raw_data_cf()
 
@@ -262,17 +223,14 @@ def main():
     fluxes = [v for v in ds_awd.data_vars.keys() if 'dN_' in v] + \
             [v for v in ds_awd.data_vars.keys() if 'dC_' in v]
 
+    # filter some vars from data source
     fluxes = [f for f in fluxes if f not in ['dN_litter','dN_fertilizer','dC_bud']]
-
-    vargroups = {'N gas exchange': ['dN_n2o_emis', 'dN_no_emis', 'dN_nh3_emis', 'dN_n2_emis', 'dN_dep', 'dN_n2_fix'] ,
-                'N leaching': [], 
-                'other': [] }
 
     st.header("Data exploration")
 
     only_ghg_vars = st.checkbox('Only GHG emissions (values converted to GWP [1])')
     if only_ghg_vars:
-        fluxes = ['dN_n2o_emis', 'dC_ch4_emis']
+        fluxes = gwp_vars
         default_sel = fluxes
     else:
         default_sel = ['dN_n2o_emis']
@@ -296,11 +254,13 @@ def main():
     sel_timestep = st.sidebar.radio("Show daily or annual data", ['daily', 'annual'])
 
     # data smoothing
-    smooth = st.sidebar.checkbox("Smooth (daily) data")
+    sel_smooth = st.sidebar.empty() 
     smooth_slider = st.sidebar.empty()
+    smooth = sel_smooth.checkbox("Smooth (daily) data")
     if smooth:
         smooth_rate = smooth_slider.slider("smoothing rate (days)", 7, 30, 7)
 
+    # management type
     mana = st.sidebar.radio("Choose rice management", ['Conventional', 'AWD'])
 
     # year selection
@@ -310,7 +270,6 @@ def main():
     ds = ds_cf[vars] if mana == 'Conventional' else ds_awd[vars]
 
     # for later statistics
-    gwp_vars = ['dN_n2o_emis', 'dC_ch4_emis']
     data_orig_cf = ds_cf_gc[gwp_vars].to_dataframe()
     data_orig_awd = ds_awd_gc[gwp_vars].to_dataframe()
 
@@ -321,7 +280,7 @@ def main():
         data.index = pd.to_datetime(data.index, format='%Y')
 
         # disable smooth option as we only allow it for daily data
-        smooth_chk.checkbox("Smooth (daily) data", value=False, key='b')
+        sel_smooth.checkbox("Smooth (daily) data", value=False, key='b')
         smooth_slider.empty()
 
     if smooth:
@@ -362,7 +321,6 @@ def main():
         line_plot(data, units=f'[{units} ha-1 yr-1]')
     else:
         bar_plot(data, units=f'[{units} yr-1]')
-
 
 
     if show_report:
