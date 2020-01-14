@@ -1,7 +1,7 @@
+cython
 altair
 netcdf4
 xarray
 streamlit
 matplotlib
-Cython
 cartopy
