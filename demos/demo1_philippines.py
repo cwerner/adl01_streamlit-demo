@@ -38,25 +38,25 @@ def process_df(df, vars):
     df_ = df_.melt(index_col_, var_name='variable', value_name='value')
     return (index_col_, df_)
 
-def line_plot(df, vars=None):
-
+def line_plot(df, vars=None, units=None):
+    units_ = units if units else '[kg yr-1]'
     index_, df_ = process_df(df, vars)
     c = alt.Chart(df_).mark_line().encode(
             alt.X(f'{index_}:T', title=''),
-            alt.Y('value:Q', title='Flux [kg N yr-1]'), 
+            alt.Y('value:Q', title=f'Flux {units_}'), 
             alt.Color('variable:N', legend=alt.Legend(title='')), 
         ).configure_axis(
             grid=False
         )
     st.altair_chart(c)
 
-def bar_plot(df, vars=None):
-
+def bar_plot(df, vars=None, units=None):
+    units_ = units if units else '[kg yr-1]'
     index_, df_ = process_df(df, vars)
     df_['year'] = df_[index_].dt.year
     c = alt.Chart(df_).mark_bar().encode(
             alt.X('year:O', title=''),
-            alt.Y('value:Q', title='Flux [kg N yr-1]'), 
+            alt.Y('value:Q', title=f'Flux {units_}'), 
             alt.Color('variable:N', legend=alt.Legend(title='')), 
         ).configure_axis(
             grid=False
@@ -237,14 +237,21 @@ if only_ghg_vars:
         data['dC_ch4_emis'] = convert_ch4_gwp(data['dC_ch4_emis'])
    
 
+# plotting canvas
 
-# MAIN CANVAS
+# compose units for plot
+if only_ghg_vars:
+    units = 'kg GWP-eq'
+elif ('dC_ch4_emis' in vars) and len(vars) == 1:
+    units = 'kg C'
+else:
+    units = 'kg N'
 
 # plots
 if ts == 'daily':
-    line_plot(data)
+    line_plot(data, units=f'[{units} ha-1 yr-1]')
 else:
-    bar_plot(data)
+    bar_plot(data, units=f'[{units} yr-1]')
 
 if show_report:
     # reporting
