@@ -7,10 +7,37 @@ import textwrap
 import xarray as xr
 import datetime
 import altair as alt
+import matplotlib.pyplot as plt
 
 # GWP for 100-yr time horizon  according to 5th IPCC report
 n2o_gwp = 265
 ch4_gwp = 28
+
+@st.cache(allow_output_mutation=True)
+def load_raw_data_awd():
+    return xr.open_dataset('../data/demo1_philippines/default_awd_hr_200_nobund_daily_ts_ha.nc')
+
+@st.cache(allow_output_mutation=True)
+def load_raw_data_cf():
+    return xr.open_dataset('../data/demo1_philippines/default_cf_hr_200_nobund_daily_ts_ha.nc')
+
+@st.cache(allow_output_mutation=True)
+def load_raw_data_awd_gridcell():
+    return xr.open_dataset('../data/demo1_philippines/default_awd_hr_200_nobund_daily_ts_gridcell.nc')
+
+@st.cache(allow_output_mutation=True)
+def load_raw_data_cf_gridcell():
+    return xr.open_dataset('../data/demo1_philippines/default_cf_hr_200_nobund_daily_ts_gridcell.nc')
+
+@st.cache(allow_output_mutation=True)
+def load_raw_data_awd_annual():
+    return xr.open_dataset('../data/demo1_philippines/default_cf_hr_200_nobund_annual.nc')[['dC_ch4_emis', 'dN_n2o_emis']]
+
+@st.cache(allow_output_mutation=True)
+def load_raw_data_cf_annual():
+    return xr.open_dataset('../data/demo1_philippines/default_cf_hr_200_nobund_annual.nc')[['dC_ch4_emis', 'dN_n2o_emis']]
+
+
 
 def convert_ch4_gwp(value):
     return value * ch4_gwp * (16./12.)
@@ -20,7 +47,6 @@ def convert_n2o_gwp(value):
 
 def identify_index_col(df):
     for c in df.columns.values:
-        print(c)
         if str(c).lower() in ['time', 'date', 'year']:
             return str(c)
     return None
@@ -63,6 +89,107 @@ def bar_plot(df, vars=None, units=None):
         )
     st.altair_chart(c)    
 
+def plot_maps(management='Conventional', year=None):
+
+    # larger font
+    import matplotlib
+    matplotlib.rcParams.update({'font.size': 10})
+    import matplotlib.patches as mpatches
+    #import cartopy.crs as ccrs
+    #import cartopy.feature as cfeature
+    #import cartopy.io.shapereader as shapereader    
+
+    # Create a feature for States/Admin 1 regions at 1:50m from Natural Earth
+    #countries = cfeature.NaturalEarthFeature(
+    #    category='cultural',
+    #    name='admin_0_countries',
+    #    scale='50m',
+    #    facecolor='none')
+
+    #countries2 = shapereader.natural_earth(resolution='50m',
+    #                                    category='cultural',
+    #                                    name='admin_0_countries')
+
+    #for country in shapereader.Reader(countries2).records():
+    #    if country.attributes['SU_A3'] == 'PHL':
+    #        philippines = country.geometry
+    #        break
+    #else:
+    #    raise ValueError('Unable to find the PHL boundary.')
+        
+    #ocean = cfeature.NaturalEarthFeature(
+    #        category='physical', 
+    #        name='ocean', 
+    #        scale='50m',
+    #        edgecolor='face',
+    #        facecolor=cfeature.COLORS['water'])
+
+    Dname = {}
+    Dname['dC_ch4_emis'] = r'$\mathregular{CH_4\ emission\ [kg\ C\ ha^{-1}\ yr^{-1}]}$'
+    Dname['dN_n2o_emis'] = r'$\mathregular{N_2O\ emission\ [kg\ N\ ha^{-1}\ yr^{-1}]}$'
+    Dname['GWP']         = r'$\mathregular{GWP\ [Mg\ CO_2\ eq\ ha^{-1}\ yr^{-1}]}$'
+
+    if year:
+        davg_cf = load_raw_data_cf_annual().sel(year=year).mean(dim='year')
+        davg_awd = load_raw_data_cf_annual().sel(year=year).mean(dim='year')
+    else:
+        davg_cf = load_raw_data_cf_annual().mean(dim='year')
+        davg_awd = load_raw_data_cf_annual().mean(dim='year')
+
+    davg = davg_cf if management == 'Conventional' else davg_awd
+
+    da_ch4   = davg['dC_ch4_emis']
+    da_n2o   = davg['dN_n2o_emis']
+    da_gwp   = convert_ch4_gwp(da_ch4) + convert_n2o_gwp(da_n2o)
+
+    fig, axes = plt.subplots(2, 2, figsize=(10,10)) #, subplot_kw=dict(projection=ccrs.PlateCarree()))
+
+    for i, ax in enumerate(axes.flat):
+        if i == 3:
+            break
+        #ax.set_extent([116, 127, 4, 22])
+            
+        # add map elements
+        #ax.add_feature(countries, edgecolor='gray')     # country borders
+        #ax.add_geometries(vietnam, ccrs.PlateCarree(), edgecolor='white', facecolor='none')
+        #ax.add_feature(ocean)                           # ocean
+        #ax.coastlines(resolution='50m')                 # coastlines
+
+        if i == 0:
+            colors = plt.cm.Reds
+            p=xr.plot.pcolormesh(da_ch4.where(da_ch4>0), cbar_kwargs={'label': Dname['dC_ch4_emis']}, 
+                        ax=ax, cmap=colors, #transform=ccrs.PlateCarree(), 
+                        vmin=0, vmax=1500, extend='max' )
+
+        elif i == 1:
+            colors = plt.cm.YlGn
+            xr.plot.pcolormesh(da_n2o.where(da_n2o>0), cbar_kwargs={'label': Dname['dN_n2o_emis']},
+                        ax=ax, cmap=colors, #transform=ccrs.PlateCarree(), 
+                        vmin=0, vmax=5, extend='max' )
+
+        elif i == 2:
+            colors = plt.cm.Blues
+            xr.plot.pcolormesh(da_gwp.where(da_gwp>0), cbar_kwargs={'label': Dname['GWP']}, 
+                        ax=ax, cmap=colors, #transform=ccrs.PlateCarree(), 
+                        vmin=0, vmax=50, extend='max')
+
+        #sublabels='ABC'
+        #ax.add_patch(mpatches.Rectangle(xy=[116.25, 19], width=1, height=1,
+        #                                    facecolor='none',
+        #                                    edgecolor='black',
+        #                                    alpha=1.0))
+        #                                    # transform=ccrs.PlateCarree()))
+
+        sublabels = ['CH4', 'N2O', 'CH4+N2O']
+
+        ax.text(116.5, 20.45, sublabels[i], fontsize=15,
+                horizontalalignment='left', verticalalignment='center') 
+                #transform=ccrs.PlateCarree())
+
+    fig.delaxes(axes[1][1])
+
+    return fig
+
 
 st.title('Data explorer for LandscapeDNDC Philippines sims')
 
@@ -71,7 +198,7 @@ st.sidebar.subheader("General")
 
 show_intro = st.sidebar.checkbox("Show intro", value=True)
 show_code = st.sidebar.checkbox("Show code", value=False)
-show_report = st.sidebar.checkbox("Show report", value=False)
+show_report = st.sidebar.checkbox("Show report & maps", value=False)
 
 if show_intro:
     st.markdown("""\
@@ -104,21 +231,6 @@ if show_code:
     st.code(open(__file__).read())
 
 
-@st.cache(allow_output_mutation=True)
-def load_raw_data_awd():
-    return xr.open_dataset('../data/demo1_philippines/default_awd_hr_200_nobund_daily_ts_ha.nc')
-
-@st.cache(allow_output_mutation=True)
-def load_raw_data_cf():
-    return xr.open_dataset('../data/demo1_philippines/default_cf_hr_200_nobund_daily_ts_ha.nc')
-
-@st.cache(allow_output_mutation=True)
-def load_raw_data_awd_gridcell():
-    return xr.open_dataset('../data/demo1_philippines/default_awd_hr_200_nobund_daily_ts_gridcell.nc')
-
-@st.cache(allow_output_mutation=True)
-def load_raw_data_cf_gridcell():
-    return xr.open_dataset('../data/demo1_philippines/default_cf_hr_200_nobund_daily_ts_gridcell.nc')
 
 varsubset = []
 varnames = {'aC_change': 'annual C change',
@@ -199,6 +311,8 @@ year_slider = st.sidebar.empty()
 # prepare data/ apply options
 ds = ds_cf[vars] if mana == 'Conventional' else ds_awd[vars]
 
+
+
 # for later statistics
 gwp_vars = ['dN_n2o_emis', 'dC_ch4_emis']
 data_orig_cf = ds_cf_gc[gwp_vars].to_dataframe()
@@ -221,14 +335,14 @@ min_year = data.index.min().to_pydatetime().year
 max_year = data.index.max().to_pydatetime().year
 
 year_filter = year_slider.slider('Select years', min_year, max_year, (min_year, max_year))
-#data = data[ (data.index >= str(year_filter[0])) & (data.index <= str(year_filter[1])) ]
 
-def limit_data(df):
+def limit_data_df(df):
     return df[ (df.index >= str(year_filter[0])) & (df.index <= str(year_filter[1])) ] 
 
-data = limit_data(data)
-data_orig_cf = limit_data(data_orig_cf)
-data_orig_awd = limit_data(data_orig_awd)
+
+data = limit_data_df(data)
+data_orig_cf = limit_data_df(data_orig_cf)
+data_orig_awd = limit_data_df(data_orig_awd)
 
 if only_ghg_vars:
     if 'dN_n2o_emis' in data.columns.values:
@@ -252,6 +366,8 @@ if sel_timestep == 'daily':
     line_plot(data, units=f'[{units} ha-1 yr-1]')
 else:
     bar_plot(data, units=f'[{units} yr-1]')
+
+
 
 if show_report:
     # reporting
@@ -312,6 +428,13 @@ if show_report:
     st.markdown( f"""
         >**A `{awd_deployed}% change to AWD` management would thus `{change}` the total GHG emissions
         from rice paddies by `{change_pct:.1f} %` (a `GWP {change2} of {diff:.0f} kg CO2-eq yr-1`) compared to the conventional practice.**""")
+
+    # maps
+    st.subheader("Spatial distribution of GHG emissions")
+    st.markdown("The following maps show the average annual emission for the selected management option...")
+    st.warning("⚠️ TODO: Fix cartopy setup in dokku deployment and use geo-axes in plotting")
+    st.pyplot(plot_maps(management=mana, year=range(year_filter[0], year_filter[1]+1)), bbox_inches='tight')
+
 
 # footer
 st.markdown("[1] GWP calculation based on the IPCC, 5th Assessment Report")
