@@ -1,5 +1,6 @@
+pip
 #cython --install-option="--no-cython-compile"
-cython
+cython	# cartopy is installed via setup.sh at deploy time !!!
 altair
 netcdf4
 xarray
