@@ -6,6 +6,7 @@ from string import capwords
 import textwrap
 import xarray as xr
 import datetime
+import altair as alt
 
 # GWP for 100-yr time horizon  according to 5th IPCC report
 n2o_gwp = 265
@@ -13,15 +14,29 @@ ch4_gwp = 28
 
 st.header('Data explorer for LandscapeDNDC Philippines sims')
 
+descr = st.checkbox("Show description", value=True)
+
+if descr:
+    st.markdown("""\
+        We use [streamlit](https://streamlit.io) to explore some simulation 
+        results of the [LandscapeDNDC](https://ldndc.imk-ifu.kit.edu) biogeochemical model. The 
+        simulations were conducted as part of [Introducing non-flooded crops in rice-dominated
+        landscapes: Impact on CarbOn, Nitrogen and water budgets (ICON)](http://www.uni-giessen.de/faculties/f08/departments/tsz/animal-ecology/iconproject/iconindex)
+        by [David Kraus](https://www.imk-ifu.kit.edu/staff_David_Kraus.php) and 
+        [Christian Werner](https://www.imk-ifu.kit.edu/staff_Christian_Werner.php) at Campus Alpin, IMK-IFU,
+        Karlsruhe Institute of Technology.
+
+        A brief summary of the project:   
+        > *The interdisciplinary and transdisciplinary research unit ICON aims at exploring*
+        > *and quantify- ing the ecological consequences of future changes in rice production*
+        > *in SE Asia. A particular focus will be on the consequences of altered flooding*
+        > *regimes (flooded vs. non-flooded), crop diversification (wet rice vs. *
+        > *dry rice vs. maize) and different crop management strategies (N fertilization)*
+        > *on the biogeochemical cycling of carbon and nitrogen, the associated greenhouse gas*
+        > *emissions, the water balance, and other important ecosystem services of rice*
+        > *cropping systems.*""")
+
 st.markdown("""\
-    We use [streamlit](https://streamlit.io) to explore some simulation 
-    results of the [LandscapeDNDC](https://ldndc.imk-ifu.kit.edu) biogeochemical model. The 
-    simulations were conducted as part of the 
-    [ICON project](http://www.uni-giessen.de/faculties/f08/departments/tsz/animal-ecology/iconproject/iconindex)
-    by [David Kraus](https://www.imk-ifu.kit.edu/staff_David_Kraus.php) and 
-    [Christian Werner](https://www.imk-ifu.kit.edu/staff_Christian_Werner.php) at Campus Alpin, IMK-IFU,
-    Karlsruhe Institute of Technology.  
-    
     App created by
     [Christian Werner (christian.werner@kit.edu)](https://www.christianwerner.net)\n""")
 
@@ -160,11 +175,37 @@ show_code = st.sidebar.checkbox("Show code", value=False)
 
 # MAIN CANVAS
 
+
+def line_plot(df, vars=None, kind='line', index=None):
+    """A more explicit plotting routine"""
+    df_ = df.reset_index()[vars] if vars else df.reset_index()
+    if vars is None:
+        vars = list(df.columns.values)
+
+    # rename columns
+    for v in vars:
+        df_ = df_.rename({v: fluxnames.get(v)}, axis=1)
+
+    df_ = df_.melt('time', var_name='variable', value_name='value')
+    c = alt.Chart(df_).mark_line().encode(
+            alt.X('time:T', title=''),
+            alt.Y('value:Q', title='Flux [kg N yr-1]'), # axis=alt.Axis(title="Flux [kg N yr-1]")),
+            alt.Color('variable:N', legend=alt.Legend(title='')), #, mapping=fluxnames)),
+        ).configure_axis(
+            grid=False
+        )
+    st.altair_chart(c)
+
+
 # plots
 if ts == 'daily':
-    st.line_chart(data)
+    #    st.line_chart(data)
+    line_plot(data)
+
 else:
     st.bar_chart(data)
+
+
 
 # reporting
 st.subheader("Summary report")
@@ -226,6 +267,7 @@ st.markdown( f"""
     from rice paddies by `{change_pct:.1f} %` (a `GWP {change2} of {diff:.0f} kg CO2-eq yr-1`) compared to the conventional practice.**""")
 
 st.markdown("[1] GWP calculation based on the IPCC, 5th Assessment Report")
+
 
 # extra
 if show_data:
