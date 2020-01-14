@@ -6,4 +6,5 @@ netcdf4
 xarray
 streamlit
 matplotlib
+scipy
 #cartopy
