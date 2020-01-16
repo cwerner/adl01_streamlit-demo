@@ -1,5 +1,4 @@
-pip
-#cython --install-option="--no-cython-compile"
+pip>=19.3
 cython	# cartopy is installed via setup.sh at deploy time !!!
 altair
 netcdf4
@@ -8,3 +7,4 @@ streamlit
 matplotlib
 scipy
 #cartopy
+pint
