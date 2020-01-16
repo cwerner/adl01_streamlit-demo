@@ -58,7 +58,7 @@ def line_plot(df, vars=None, units=None):
         ).configure_axis(
             grid=False
         )
-    st.altair_chart(c)
+    st.altair_chart(c, use_container_width=True)
 
 def bar_plot(df, vars=None, units=None):
     units_ = units if units else '[kg yr⁻¹]'
@@ -71,7 +71,7 @@ def bar_plot(df, vars=None, units=None):
         ).configure_axis(
             grid=False
         )
-    st.altair_chart(c)    
+    st.altair_chart(c, use_container_width=True)    
 
 
 def main():
