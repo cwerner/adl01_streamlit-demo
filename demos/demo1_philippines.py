@@ -49,7 +49,7 @@ def process_df(df, vars):
     return (index_col_, df_)
 
 def line_plot(df, vars=None, units=None):
-    units_ = units if units else '[kg yr-1]'
+    units_ = units if units else '[kg yr⁻¹]'
     index_, df_ = process_df(df, vars)
     c = alt.Chart(df_).mark_line().encode(
             alt.X(f'{index_}:T', title=''),
@@ -61,7 +61,7 @@ def line_plot(df, vars=None, units=None):
     st.altair_chart(c)
 
 def bar_plot(df, vars=None, units=None):
-    units_ = units if units else '[kg yr-1]'
+    units_ = units if units else '[kg yr⁻¹]'
     index_, df_ = process_df(df, vars)
     df_['year'] = df_[index_].dt.year
     c = alt.Chart(df_).mark_bar().encode(
@@ -202,9 +202,9 @@ def main():
 
     # plots
     if sel_timestep == 'daily':
-        line_plot(data, units=f'[{units} ha-1 yr-1]')
+        line_plot(data, units=f'[{units} ha⁻¹ yr⁻¹]')
     else:
-        bar_plot(data, units=f'[{units} yr-1]')
+        bar_plot(data, units=f'[{units} yr⁻¹]')
 
 
     if show_report:
@@ -216,9 +216,8 @@ def main():
         # maps
         st.subheader("Spatial distribution of GHG emissions")
         st.markdown("The following maps show the average annual emission for the selected management option...")
-        st.warning("⚠️ TODO: Fix cartopy setup in dokku deployment and use geo-axes in plotting")
+        st.warning("⚠️ TODO: Fix performance problems in Cartopy plotting setup")
         st.pyplot(plot_maps(management=mana, year=range(year_filter[0], year_filter[1]+1)), bbox_inches='tight')
-
 
     # footer
     st.markdown("[1] GWP calculation based on the IPCC, 5th Assessment Report")
