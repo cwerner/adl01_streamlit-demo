@@ -20,8 +20,8 @@ INTRO = """\
 
 
 # GWP for 100-yr time horizon  according to 5th IPCC report
-n2o_gwp = 265
-ch4_gwp = 28
+n2o_gwp = 298
+ch4_gwp = 38
 
 gwp_vars = ['dN_n2o_emis', 'dC_ch4_emis']
 
@@ -44,37 +44,3 @@ fluxnames = {'dN_n2o_emis': 'N2O Emission',
             'dC_ch4_emis': 'CH4 Emission'}
 
 
-# import pandas as pd
-# import pint
-
-# u = pint.UnitRegistry()
-
-# class Data:
-#     def __init__(self, x):
-#         self.flux = x*u.kg/u.hectare
-
-#     def __repr__(self):
-#         return f"{self.flux}"
-
-# if __name__ == '__main__':
-#     d = Data(12)
-#     print(d)
-
-#     import pandas as pd
-#     import pint
-#     import io
-
-#     test_data = '''speed,mech power,torque,rail pressure,fuel flow rate,fluid power
-# rpm,kW,N m,bar,l/min,kW
-# 1000.0,,10.0,1000.0,10.0,
-# 1100.0,,10.0,100000000.0,10.0,
-# 1200.0,,10.0,1000.0,10.0,
-# 1200.0,,10.0,1000.0,10.0,'''
-
-#     df = pd.read_csv(io.StringIO(test_data),header=[0,1])
-#     print(df)
-
-#     print(df.dtypes)
-
-#     df_ = df.pint.quantify(level=-1)
-#     print(df_)

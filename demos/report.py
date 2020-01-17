@@ -1,36 +1,6 @@
 import streamlit as st
 from utils import gwp_vars, convert_ch4_gwp, convert_n2o_gwp
 
-import pint
-ureg = pint.UnitRegistry()
-Q_ = ureg.Quantity
-
-
-if __name__ == '__main__':
-
-    # test the pint implementation
-    d = Q_(12, "kg / ha / yr")
-    print(f"{d.to_compact():~}")
-    area = Q_(1.23141 * 10e9, "ha")
-    e = d * Q_(1.23141 * 10e7, "ha")
-    print(f"{e.to_compact():.2f~}")
-    print(area.to('km**2').to_compact())
-#     test_data = '''speed,mech power,torque,rail pressure,fuel flow rate,fluid power
-# rpm,kW,N m,bar,l/min,kW
-# 1000.0,,10.0,1000.0,10.0,
-# 1100.0,,10.0,100000000.0,10.0,
-# 1200.0,,10.0,1000.0,10.0,
-# 1200.0,,10.0,1000.0,10.0,'''
-
-#     df = pd.read_csv(io.StringIO(test_data),header=[0,1])
-#     print(df)
-
-#     print(df.dtypes)
-
-#     df_ = df.pint.quantify(level=⁻¹)
-#     print(df_)
-
-
 def create_report(data_orig_cf, data_orig_awd):
     stats = {}
     for var in gwp_vars:
