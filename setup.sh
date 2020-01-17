@@ -12,4 +12,3 @@ enableCORS=false\n\
 port = 8501\n\
 " > ~/.streamlit/config.toml
 
-pip install cartopy
