@@ -179,7 +179,18 @@ def main():
 
     view_state = pdk.ViewState(latitude=11, longitude=122, zoom=5, pitch=33)
 
-    r = pdk.Deck(layers=[layer], initial_view_state=view_state, map_style='')
+    r = pdk.Deck(layers=[layer], 
+                 initial_view_state=view_state, 
+                 map_style='mapbox://styles/mapbox/light-v10',
+                 #map_style='mapbox://styles/mapbox/cjaudgl840gn32rnrepcb9b9g',
+                # CURRENTLY NOT WORKING IN 0.53 
+                #  tooltip={
+                #     'html': '<b>Emission:</b> {h}',
+                #     'style': {
+                #         'color': 'white'
+                #         }
+                #     }
+                )
     st.write(r)
 
     def compute_stats(ds, how='annual'):
