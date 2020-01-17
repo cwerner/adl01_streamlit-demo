@@ -48,8 +48,8 @@ def convert_n2o_gwp(value):
 mana_names = {'CF': 'Continuously Flooded (CF)', 
               'AWD': 'Alternate Wet-Dry (AWD)'}
 
-names = {'ch4_gwp': 'CH4 Emission', 
-         'n2o_gwp': 'N2O Emission', 
+names = {'ch4_gwp': 'CH₄ Emission', 
+         'n2o_gwp': 'N₂O Emission', 
          'total_gwp': 'Total Emission'}
 
 
