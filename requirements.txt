@@ -7,4 +7,3 @@ streamlit
 matplotlib
 scipy
 #cartopy
-pint
